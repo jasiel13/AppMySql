@@ -1,0 +1,76 @@
+﻿@page "/indice-empleados"
+@using AppMySql.Shared.Modelos
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<h3>Empleados</h3>
+
+@if (empleados == null)
+{
+    <p><em>Cargando...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Correo</th>
+                <th>Nueva Columna</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in empleados)
+            {
+                <tr>
+                    <td>@item.Id.ToString()</td>
+                    <td>@item.FirstName</td>
+                    <td>@item.LastName</td>
+                    <td>@item.EmailAddress</td>
+                    <td>@item.Image</td>
+                    <td>
+                        <button class="btn btn-info"
+                                @onclick="(() => Edit(item.Id))">
+                            Editar
+                        </button>
+                        <button class="btn btn-danger"
+                                @onclick="(() => Delete(item.Id))">
+                            Borrar
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <div>
+        <button class="btn btn-success" @onclick="Create">Añadir Empleado</button>
+    </div>
+}
+@code {
+
+    private List<Employee> empleados;
+
+    protected override async Task OnInitializedAsync()
+    {
+        empleados = await Http.GetFromJsonAsync<List<Employee>>("api/Employee");
+    }
+
+    private async Task Delete(int id)
+    {
+        await Http.DeleteAsync($"api/Employee/{id}");
+        empleados = await Http.GetFromJsonAsync<List<Employee>>("api/Employee");
+        StateHasChanged();
+    }
+
+    private void Edit(int id)
+    {
+        Navigation.NavigateTo($"indice-empleados/edit/{id}");
+    }
+    private void Create()
+    {
+        Navigation.NavigateTo("indice-empleados/create");
+    }
+}
