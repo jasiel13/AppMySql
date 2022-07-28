@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using AppMySql.Shared.ModeloAuditoria;
 using AppMySql.Shared.Modelos;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -20,35 +23,82 @@ namespace AppMySql.Server.Data
         {
         }
 
-        public virtual DbSet<Customer> Customers { get; set; }
-        public virtual DbSet<Employee> Employees { get; set; }
-        public virtual DbSet<EmployeePrivilege> EmployeePrivileges { get; set; }
-        public virtual DbSet<InventoryTransaction> InventoryTransactions { get; set; }
-        public virtual DbSet<InventoryTransactionType> InventoryTransactionTypes { get; set; }
-        public virtual DbSet<Invoice> Invoices { get; set; }
-        public virtual DbSet<Order> Orders { get; set; }
-        public virtual DbSet<OrderDetail> OrderDetails { get; set; }
-        public virtual DbSet<OrderDetailsStatus> OrderDetailsStatuses { get; set; }
-        public virtual DbSet<OrdersStatus> OrdersStatuses { get; set; }
-        public virtual DbSet<OrdersTaxStatus> OrdersTaxStatuses { get; set; }
-        public virtual DbSet<Privilege> Privileges { get; set; }
-        public virtual DbSet<Product> Products { get; set; }
-        public virtual DbSet<PurchaseOrder> PurchaseOrders { get; set; }
-        public virtual DbSet<PurchaseOrderDetail> PurchaseOrderDetails { get; set; }
-        public virtual DbSet<PurchaseOrderStatus> PurchaseOrderStatuses { get; set; }
-        public virtual DbSet<SalesReport> SalesReports { get; set; }
-        public virtual DbSet<Shipper> Shippers { get; set; }
-        public virtual DbSet<Shared.Modelos.String> Strings { get; set; }
-        public virtual DbSet<Supplier> Suppliers { get; set; }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        //sobreescribimos el metodo SaveChangesAsync, para que acepte el id del usuario y mas modificaciones custom
+        public virtual async Task<int> SaveChangesAsync(string userId = null)
         {
-            if (!optionsBuilder.IsConfigured)
+            OnBeforeSaveChanges(userId);//le pasamos el nuevo metodo creado
+            var result = await base.SaveChangesAsync();
+            return result;
+        }
+        private void OnBeforeSaveChanges(string userId)
+        {
+            ChangeTracker.DetectChanges();//analiza las entidades en busca de cambios. el changetracker es un seguimiento de cambios y el metodo los detecta
+
+            var auditEntries = new List<AuditEntry>();
+
+            //recorre la colección de todas las Entidades modificadas,en nuestro caso, el ciclo siempre tendrá UNA sola iteración
+            foreach (var item in ChangeTracker.Entries())
             {
-                //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-                //optionsBuilder.UseMySql("server=10.0.0.34;port=3306;uid=Innovacion;password=Grup0S1msa2022*;database=northwind", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.30-mysql"));
+                if (item.Entity is Auditoria || item.State == EntityState.Detached || item.State == EntityState.Unchanged)
+                    continue;
+
+                var auditEntry = new AuditEntry(item);
+
+                auditEntry.TableName = item.Entity.GetType().Name;//obtiene el nombre de la tabla
+                auditEntry.UserId = userId;//obtiene el id del usuario
+                auditEntries.Add(auditEntry);//guarda la propiedades de cada entidad en la lista de entidades
+
+                foreach (var property in item.Properties)
+                {
+                    string propertyName = property.Metadata.Name;
+
+                    //si la propiedad actual es una clave principal, agréguela al diccionario de claves principales y sáltela.
+                    if (property.Metadata.IsPrimaryKey())
+                    {
+                        auditEntry.KeyValues[propertyName] = property.CurrentValue;
+                        continue;
+                    }
+
+                    //en el switch detectamos el estado de la entidad (Agregado, Eliminado o Modificado)
+                    //y por cada caso agregamos nuevos datos a cada campo de la tabla auditoria
+                    switch (item.State)
+                    {
+                        case EntityState.Added:
+                            auditEntry.AuditType = Shared.Enums.AuditType.Create;
+                            auditEntry.NewValues[propertyName] = property.CurrentValue;
+                            break;
+                        case EntityState.Deleted:
+                            auditEntry.AuditType = Shared.Enums.AuditType.Delete;
+                            auditEntry.OldValues[propertyName] = property.OriginalValue;
+                            break;
+                        case EntityState.Modified:
+                            if (property.IsModified)
+                            {
+                                auditEntry.ChangedColumns.Add(propertyName);
+                                auditEntry.AuditType = Shared.Enums.AuditType.Update;
+                                auditEntry.OldValues[propertyName] = property.OriginalValue;
+                                auditEntry.NewValues[propertyName] = property.CurrentValue;
+                            }
+                            break;
+                    }
+                }
             }
-        }       
+            //convertimos todas las Entradas de Auditoría a Auditorías y guardamos los cambios en el metodo original: var result = await base.SaveChangesAsync();
+            foreach (var auditEntry in auditEntries)
+            {
+                Auditorias.Add(auditEntry.ToAudit());
+            }
+        }
+
+        //database first
+        //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        //{
+        //    if (!optionsBuilder.IsConfigured)
+        //    {
+        //        //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
+        //        //optionsBuilder.UseMySql("server=10.0.0.34;port=3306;uid=Innovacion;password=Grup0S1msa2022*;database=northwind", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.30-mysql"));
+        //    }
+        //}       
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -1028,16 +1078,38 @@ namespace AppMySql.Server.Data
                     .HasColumnName("zip_postal_code");
             });
 
-            OnModelCreatingPartial(modelBuilder);
+            //OnModelCreatingPartial(modelBuilder);//database first
 
             var roleAdmin = new IdentityRole()
-            { Id = "89086180-b978-4f90-9dbd-a7040bc93f41", Name = "admin", NormalizedName = "admin" };
+            { Id = "f2e8377a-a95f-4e57-ac21-392bb3240cb4", Name = "Administrador", NormalizedName = "Administrador" };
 
             modelBuilder.Entity<IdentityRole>().HasData(roleAdmin);
 
             base.OnModelCreating(modelBuilder);
         }
+        //partial void OnModelCreatingPartial(ModelBuilder modelBuilder);//database first
 
-        partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+        public virtual DbSet<Customer> Customers { get; set; }
+        public virtual DbSet<Employee> Employees { get; set; }
+        public virtual DbSet<EmployeePrivilege> EmployeePrivileges { get; set; }
+        public virtual DbSet<InventoryTransaction> InventoryTransactions { get; set; }
+        public virtual DbSet<InventoryTransactionType> InventoryTransactionTypes { get; set; }
+        public virtual DbSet<Invoice> Invoices { get; set; }
+        public virtual DbSet<Order> Orders { get; set; }
+        public virtual DbSet<OrderDetail> OrderDetails { get; set; }
+        public virtual DbSet<OrderDetailsStatus> OrderDetailsStatuses { get; set; }
+        public virtual DbSet<OrdersStatus> OrdersStatuses { get; set; }
+        public virtual DbSet<OrdersTaxStatus> OrdersTaxStatuses { get; set; }
+        public virtual DbSet<Privilege> Privileges { get; set; }
+        public virtual DbSet<Product> Products { get; set; }
+        public virtual DbSet<PurchaseOrder> PurchaseOrders { get; set; }
+        public virtual DbSet<PurchaseOrderDetail> PurchaseOrderDetails { get; set; }
+        public virtual DbSet<PurchaseOrderStatus> PurchaseOrderStatuses { get; set; }
+        public virtual DbSet<SalesReport> SalesReports { get; set; }
+        public virtual DbSet<Shipper> Shippers { get; set; }
+        public virtual DbSet<Shared.Modelos.String> Strings { get; set; }
+        public virtual DbSet<Supplier> Suppliers { get; set; }
+
+        public DbSet<Auditoria> Auditorias { get; set; }
     }
 }

@@ -87,11 +87,12 @@ namespace AppMySql.Server.Controllers
         {
             var claims = new List<Claim>()
             {
-        new Claim(JwtRegisteredClaimNames.UniqueName, userInfo.Email),
-        new Claim(ClaimTypes.Name, userInfo.Email),
-        new Claim("miValor", "Lo que yo quiera"),
-        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-    };
+                new Claim(JwtRegisteredClaimNames.UniqueName, userInfo.Email),
+                new Claim(ClaimTypes.Name, userInfo.Email),
+                new Claim("miValor", "Lo que yo quiera"),
+                //new Claim(ClaimTypes.NameIdentifier , userInfo.Id),//recuperamos el id del usuario logueado
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
 
             foreach (var rol in roles)
             {
@@ -101,7 +102,7 @@ namespace AppMySql.Server.Controllers
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:key"]));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var expiration = DateTime.UtcNow.AddMinutes(5);
+            var expiration = DateTime.UtcNow.AddMonths(3);
 
             JwtSecurityToken token = new JwtSecurityToken(
                issuer: null,

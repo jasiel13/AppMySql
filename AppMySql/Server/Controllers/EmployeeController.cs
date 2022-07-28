@@ -1,17 +1,21 @@
 ﻿using AppMySql.Server.Data;
 using AppMySql.Shared.Modelos;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace AppMySql.Server.Controllers
 {
     [Route("api/[controller]")]
-    [ApiController]   
+    [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Administrador")]
     public class EmployeeController : ControllerBase
     {
         private readonly northwindContext _context;
@@ -65,12 +69,14 @@ namespace AppMySql.Server.Controllers
         }
         // POST: api/Films
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<Employee>> PostEmployee(Employee employee)
+        [HttpPost]    
+        public async Task<ActionResult<int>> PostEmployee(Employee employee)
         {
             _context.Employees.Add(employee);
             await _context.SaveChangesAsync();
-            return CreatedAtAction("GetFilm", new { id = employee.Id }, employee);
+            //await _context.SaveChangesAsync(User?.FindFirst(ClaimTypes.NameIdentifier).Value);
+            return CreatedAtAction("GetEmployee", new { id = employee.Id }, employee);
+            //return employee.Id;
         }
         // DELETE: api/Films/5
         [HttpDelete("{id}")]

@@ -80,6 +80,11 @@ namespace AppMySql.Server
 
             app.UseRouting();
 
+            //creamos un middlewaer de autenticacion y autorizacion
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapRazorPages();
