@@ -33,6 +33,7 @@ namespace AppMySql.Shared.Modelos
         public string Notes { get; set; }
         public byte[] Attachments { get; set; }
         public string Image { get; set; }
+        public DateTime? Fecha { get; set; }
 
         public virtual ICollection<EmployeePrivilege> EmployeePrivileges { get; set; }
         public virtual ICollection<Order> Orders { get; set; }

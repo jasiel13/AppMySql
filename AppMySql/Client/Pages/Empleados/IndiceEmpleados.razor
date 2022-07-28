@@ -19,6 +19,7 @@ else
                 <th>Apellido</th>
                 <th>Correo</th>
                 <th>Nueva Columna</th>
+                <th>Fecha</th>
                 <th></th>
             </tr>
         </thead>
@@ -31,6 +32,16 @@ else
                     <td>@item.LastName</td>
                     <td>@item.EmailAddress</td>
                     <td>@item.Image</td>
+                    <td>
+                        @if (item.Fecha != null)
+                        {
+                            @item.Fecha.Value.ToString("MM/dd/yyyy h:mm tt")
+                        }
+                        else
+                        {
+                            <span>no hay fecha</span>
+                        }
+                    </td>
                     <td>
                         <button class="btn btn-info"
                                 @onclick="(() => Edit(item.Id))">
@@ -49,13 +60,45 @@ else
         <button class="btn btn-success" @onclick="Create">Añadir Empleado</button>
     </div>
 }
+
+<br />
+<h3>Tareas</h3>
+
+@if (tareas == null)
+{
+    <p><em>Cargando...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Nombre</th>                
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in tareas)
+            {
+                <tr>
+                    <td>@item.Task_id.ToString()</td>
+                    <td>@item.Title</td>                 
+                </tr>
+            }
+        </tbody>
+    </table>  
+}
+
 @code {
 
     private List<Employee> empleados;
 
+    private List<Tasks> tareas;
+
     protected override async Task OnInitializedAsync()
     {
         empleados = await Http.GetFromJsonAsync<List<Employee>>("api/Employee");
+        tareas = await Http.GetFromJsonAsync<List<Tasks>>("api/Employee/Tareas");
     }
 
     private async Task Delete(int id)

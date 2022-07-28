@@ -29,6 +29,14 @@ namespace AppMySql.Server.Controllers
         {
             return await _context.Employees.ToListAsync();
         }
+
+        [Route("Tareas")]
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Tasks>>> GetTareas()
+        {
+            return await _context.Tasks.ToListAsync();
+        }
+
         // GET: api/Films/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Employee>> GetEmployee(int id)

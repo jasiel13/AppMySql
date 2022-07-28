@@ -1111,5 +1111,6 @@ namespace AppMySql.Server.Data
         public virtual DbSet<Supplier> Suppliers { get; set; }
 
         public DbSet<Auditoria> Auditorias { get; set; }
+        public DbSet<Tasks> Tasks { get; set; }
     }
 }
