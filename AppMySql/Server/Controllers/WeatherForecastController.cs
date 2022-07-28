@@ -27,6 +27,18 @@ namespace AppMySql.Server.Controllers
         [HttpGet]
         public IEnumerable<WeatherForecast> Get()
         {
+            _logger.LogWarning("este es un mensaje perzonalizado");
+
+            //ejemplo con la excepcion incluida
+            try
+            {
+                throw new NotImplementedException();
+            }
+            catch (NotImplementedException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
+;
             var rng = new Random();
             return Enumerable.Range(1, 5).Select(index => new WeatherForecast
             {
